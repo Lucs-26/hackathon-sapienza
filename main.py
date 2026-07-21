@@ -21,14 +21,35 @@ train_df = df_all
 id_col = "user_id"
 
 
-# here must be the code to divide train / val / test / forget sets
+# --- split into retain / validation / forget ---
+forget_df = pd.read_csv(os.path.join(folder_path, 'forget_data.csv'))
+
+df_all = df_all.drop_duplicates(subset=id_col, keep='first').reset_index(drop=True)
+
+forget_ids = set(forget_df[id_col])
+retain_df = df_all[~df_all[id_col].isin(forget_ids)].reset_index(drop=True)
+
+# validation is carved out of the retain set only, never from Df
+rng = np.random.default_rng(random_seed)
+perm = rng.permutation(len(retain_df))
+n_val = int(0.10 * len(retain_df))
+val_df = retain_df.iloc[perm[:n_val]].reset_index(drop=True)
+train_df = retain_df.iloc[perm[n_val:]].reset_index(drop=True)
+
+assert set(val_df[id_col]).isdisjoint(forget_ids)
+print(f"train {len(train_df)} | val {len(val_df)} | forget {len(forget_df)}")
 
 
-X_train, y_train, feature_cols, target_cols = uf.prepare_data(train_df, id_col=id_col, target_prefix='target__') # careful! here the train is not the real train set
+X_train, y_train, feature_cols, target_cols = uf.prepare_data(train_df, id_col=id_col, target_prefix='target__')
 
 imputer = SimpleImputer(strategy='median')
 X_train = imputer.fit_transform(X_train).astype(np.float32)
+# --- apply the same imputer to the other splits (fit on train only) ---
+X_val, y_val, _, _ = uf.prepare_data(val_df, id_col=id_col, target_prefix='target__')
+X_val = imputer.transform(X_val).astype(np.float32)
 
+X_forget, y_forget, _, _ = uf.prepare_data(forget_df, id_col=id_col, target_prefix='target__')
+X_forget = imputer.transform(X_forget).astype(np.float32)
 
 
 pos_counts = np.sum(y_train, axis=0)
