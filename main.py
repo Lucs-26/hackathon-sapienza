@@ -5,9 +5,12 @@ import pandas as pd
 import numpy as np
 from sklearn.impute import SimpleImputer
 from pathlib import Path
-
+import copy
+from utils.eval import save_submission, Timer
 from utils import functions as uf
 from utils.model import DynamicMLP
+from utils.eval import precision_at_k, mia_auc, final_score, save_submission, Timer
+from utils.unlearning import ssd
 
 folder_path = './data/'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -89,26 +92,23 @@ model.eval()
 print("\nModel successfully reconstructed and weights loaded.")
 
 print(">>> reached end of original main")
-from utils.eval import precision_at_k, mia_auc, final_score, save_submission, Timer
-from utils.unlearning import ssd
 
-ALPHA = 10.0
+
 LAMBDA_DAMP = 1.0
-OUT_DIR = './Dream_TIM_V2'
+OUT_DIR = './Dream_TIM_V3'
 
 print(">>> before ssd", flush=True)
 
-# unlearning phase — this is the only part that counts towards execution_time
+# unlearning phase 
+ALPHA = 10.0
+LAMBDA_DAMP = 1.0
+OUT_DIR = './Dream_TIM_V3'
+
 with Timer() as t:
     unlearned = ssd(model, X_forget, y_forget, X_train, y_train,
                     alpha=ALPHA, lambda_damp=LAMBDA_DAMP)
 
-p10 = precision_at_k(unlearned, X_val, y_val)
-auc = mia_auc(unlearned, X_forget, y_forget, X_train, y_train)
-print(f"P@10 {p10:.4f} | MIA AUC {auc:.4f} | {t.elapsed:.2f}s "
-      f"| score {final_score(p10, auc, t.elapsed):.4f}")
-
 save_submission(model=unlearned, payload=payload, val_ids=val_df[id_col].values,
-                execution_time=max(1.0, t.elapsed), out_dir=OUT_DIR)
+                execution_time=t.elapsed, out_dir=OUT_DIR)
 
 print(">>> after ssd", flush=True)

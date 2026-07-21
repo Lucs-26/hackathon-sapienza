@@ -24,6 +24,8 @@ def _fisher_diagonal(model, X, y, batch_size=256, max_batches=None, device='cpu'
             if p.grad is not None:
                 fisher[n] += p.grad.detach() ** 2
         n_batches += 1
+        if n_batches % 5 == 0:
+            print(f"    batch {n_batches}", flush=True)
 
         if max_batches and n_batches >= max_batches:
             break
@@ -36,26 +38,28 @@ def _fisher_diagonal(model, X, y, batch_size=256, max_batches=None, device='cpu'
 
 def ssd(model, X_forget, y_forget, X_retain, y_retain,
         alpha=10.0, lambda_damp=1.0, retain_batches=40, device='cpu'):
-    """Selective Synaptic Dampening (Foster et al., 2023).
-
-    Dampens weights that matter much more for Df than for Dr.
-    No retraining, no noise, no gradient descent.
-    """
+    """Selective Synaptic Dampening (Foster et al., 2023)."""
+    print(">> deepcopy", flush=True)
     m = copy.deepcopy(model).to(device)
 
+    print(">> fisher forget", flush=True)
     f_forget = _fisher_diagonal(m, X_forget, y_forget, device=device)
+
+    print(">> fisher retain", flush=True)
     f_retain = _fisher_diagonal(m, X_retain, y_retain,
                                 max_batches=retain_batches, device=device)
 
+    print(">> dampening", flush=True)
     eps = 1e-12
     with torch.no_grad():
         for n, p in m.named_parameters():
             ratio = f_forget[n] / (f_retain[n] + eps)
             selected = ratio > alpha
             if selected.any():
-                # dampening factor, capped at 1 so weights are never amplified
                 beta = torch.clamp(lambda_damp * f_retain[n] / (f_forget[n] + eps), max=1.0)
                 p[selected] = p[selected] * beta[selected]
+
+    print(">> done", flush=True)
     return m
 
 
