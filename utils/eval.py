@@ -4,7 +4,9 @@ import torch
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import cross_val_predict
-
+import os 
+import pickle
+import pandas as pd
 
 def precision_at_k(model, X, y, k=10, batch_size=4096):
     """Multi-label ranking precision: P@k = (# true positives in top-k) / k."""
@@ -71,3 +73,31 @@ class Timer:
 
     def __exit__(self, *args):
         self.elapsed = time.perf_counter() - self.t0
+
+
+
+
+def save_submission(model, payload, val_ids, execution_time,
+                    out_dir, id_col='user_id'):
+    """Writes the three files required by the submission spec.
+
+    File names are case-sensitive and no extra files are allowed.
+    """
+    os.makedirs(out_dir, exist_ok=True)
+
+    new_payload = {
+        'state_dict': {k: v.cpu() for k, v in model.state_dict().items()},
+        'architecture': payload['architecture'],
+        'best_hyperparameters': payload['best_hyperparameters'],
+        'model_class_source': payload['model_class_source'],
+    }
+    with open(os.path.join(out_dir, 'model_artifact'), 'wb') as f:
+        pickle.dump(new_payload, f)
+
+    with open(os.path.join(out_dir, 'execution_time.txt'), 'w') as f:
+        f.write(str(max(1, int(round(execution_time)))))
+
+    pd.DataFrame({id_col: val_ids}).to_csv(
+        os.path.join(out_dir, 'validation_ids.csv'), index=False)
+
+    print(f"Submission written to {out_dir}: {sorted(os.listdir(out_dir))}")
