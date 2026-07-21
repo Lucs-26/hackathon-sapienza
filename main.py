@@ -87,3 +87,5 @@ model.load_state_dict(state_dict)
 model.eval()
 
 print("\nModel successfully reconstructed and weights loaded.")
+
+print(architecture['input_dim'], X_train.shape[1])
