@@ -1,4 +1,4 @@
-# Hackathon Sapienza — Machine Unlearning
+# Dream TIM — Machine Unlearning
 
 PyTorch MLP for multi-label classification with **machine unlearning**: given a pre-trained model and a `forget_data.csv` subset, remove that subset's influence while preserving accuracy.
 
