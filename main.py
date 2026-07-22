@@ -101,7 +101,7 @@ print(">>> before ssd", flush=True)
 
 # unlearning phase 
 ALPHA = 10.0
-LAMBDA_DAMP = 1.0
+LAMBDA_DAMP = 0.5
 OUT_DIR = './Dream_TIM_V3'
 
 with Timer() as t:
